@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>币安刷量监控</title>
+  <link rel="stylesheet" href="/ui/styles.css?v=20260324-14">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero panel">
+      <div>
+        <p class="eyebrow">Binance Spot Taker Flow</p>
+        <h1>刷量监控面板</h1>
+        <p class="hero-copy">
+          监控公开成交流里的双向主动吃单，识别持续 5 分钟、10 分钟这类疑似刷量节奏。
+        </p>
+      </div>
+      <div class="hero-status">
+        <div class="status-pulse" id="modeDot"></div>
+        <div>
+          <div class="status-label">当前状态</div>
+          <div class="status-value" id="modeText">等待启动</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <section class="panel control-panel">
+        <div class="section-head">
+          <h2>监控配置</h2>
+          <p>可直接修改币种和持续窗口，点击启动后立即应用。</p>
+        </div>
+
+        <form id="configForm" class="config-grid">
+          <label>
+            <span>币种列表</span>
+            <input type="text" id="symbols" name="symbols" placeholder="NIGHTUSDT,BTCUSDT,ETHUSDT" autocomplete="off">
+          </label>
+
+          <label>
+            <span>持续窗口（分钟）</span>
+            <input type="text" id="windowsMinutes" name="windows_minutes" placeholder="5,10" autocomplete="off">
+          </label>
+
+          <label>
+            <span>日志刷新（秒）</span>
+            <input type="number" id="reportInterval" name="report_interval" min="1" step="1">
+          </label>
+
+          <label>
+            <span>基线分钟数</span>
+            <input type="number" id="baselineMinutes" name="baseline_minutes" min="1" step="1">
+          </label>
+
+          <label>
+            <span>自动停止（秒，0 为不自动停止）</span>
+            <input type="number" id="runtimeSeconds" name="runtime_seconds" min="0" step="1">
+          </label>
+
+          <div class="action-row">
+            <button type="submit" class="btn btn-primary" id="startButton">启动监控</button>
+            <button type="button" class="btn btn-secondary" id="stopButton">停止</button>
+          </div>
+        </form>
+
+        <div class="runtime-manage">
+          <div class="summary-label">运行中管理</div>
+          <label>
+            <span>新增/移除币种</span>
+            <input type="text" id="manageSymbols" placeholder="BTCUSDT,ETHUSDT" autocomplete="off">
+          </label>
+          <div class="action-row">
+            <button type="button" class="btn btn-secondary" id="addButton">添加币种</button>
+            <button type="button" class="btn btn-secondary" id="removeButton">移除输入币种</button>
+          </div>
+          <div class="confirm-bar" id="manageConfirmBar" hidden></div>
+        </div>
+
+        <div class="feedback" id="feedback">等待连接本地服务。</div>
+      </section>
+
+      <section class="panel summary-panel">
+        <div class="section-head">
+          <h2>当前结论</h2>
+          <p>先看总判断，再看三项主指标。细指标放到次级证据里。</p>
+        </div>
+        <div class="headline-panel" id="headlinePanel">
+          <div class="headline-kicker">刷量嫌疑</div>
+          <h3 id="overallHeadline">等待启动</h3>
+          <p id="overallSummary">启动监控后，这里会汇总当前最强的币种信号。</p>
+          <div class="headline-meta">
+            <span id="overallStrongestSymbol">最强币种 -</span>
+            <span id="overallWindow">窗口 -</span>
+            <span id="overallPhase">等待启动</span>
+            <span id="versionInfo">前端 - / 服务 -</span>
+          </div>
+        </div>
+        <div class="summary-grid compact">
+          <article class="summary-card compact">
+            <span class="summary-label">监控币种数</span>
+            <strong id="summarySymbolCount">-</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">已就绪币种</span>
+            <strong id="summaryReadyCount">-</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">最强币种</span>
+            <strong id="summaryStrongestSymbol">-</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">最强窗口</span>
+            <strong id="summaryStrongestWindow">-</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">最近更新时间</span>
+            <strong id="summaryUpdatedAt">-</strong>
+          </article>
+        </div>
+        <div class="scroll-region symbol-scroll-region">
+          <div class="symbol-overview-grid" id="symbolOverviewGrid">
+            <article class="empty-card">启动后在这里显示每个币种的一句话结论。</article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel windows-panel">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <h2>窗口状态</h2>
+            <div class="summary-label" id="selectedSymbolLabel">当前查看币种 -</div>
+          </div>
+          <p>点击上方币种卡片切换。下方只显示当前选中币种的窗口状态，每张卡片只先回答三件事：双边都放大了吗，价格推得动吗，行为机械吗。</p>
+        </div>
+        <div class="scroll-region window-scroll-region">
+          <div class="window-grid" id="windowGrid">
+            <article class="empty-card">启动后在这里显示 5 分钟 / 10 分钟等窗口的实时状态。</article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel logs-panel">
+        <div class="section-head">
+          <h2>运行日志</h2>
+          <p>启动、连接、周期报告和错误都会显示在这里。</p>
+        </div>
+        <pre id="logOutput" class="log-output">等待日志输出。</pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="/ui/app.js?v=20260324-14"></script>
+</body>
+</html>
