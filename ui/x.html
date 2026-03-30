@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>信息大爆炸情报面板</title>
+  <link rel="stylesheet" href="/ui/styles.css?v=20260330-44">
+</head>
+<body class="intel-page">
+  <div class="page-shell">
+    <header class="hero panel">
+      <div>
+        <div class="page-switch">
+          <a class="switch-link" href="/">刷量监控面板</a>
+          <a class="switch-link active" href="/x">信息大爆炸面板</a>
+        </div>
+        <p class="eyebrow">Crypto · War · Global Events · Hot Supplement · AI</p>
+        <h1>信息大爆炸情报面板</h1>
+        <p class="hero-copy">
+          以币圈/加密和世界战争/全球大事件为主线，少量补充其他高热度大事。主线更重信号质量，补充板块保持克制，不把娱乐噪声混进日报。
+        </p>
+      </div>
+      <div class="hero-status">
+        <div class="status-pulse" id="xStatusDot"></div>
+        <div>
+          <div class="status-label">opencli 状态</div>
+          <div class="status-value" id="xStatusText">检查中...</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel intel-strategy-panel">
+      <div class="section-head">
+        <div class="section-title-wrap">
+          <h2>推荐方案</h2>
+          <p>点下面的方案卡片切换视角。默认“最新”读取后台缓存；“已发送”单独查看正式推送副本；切到具体日期时，查看的是那天正式保留的历史日报。</p>
+        </div>
+        <label class="intel-date-picker">
+          <span>查看日期</span>
+          <select id="digestDateSelect">
+            <option value="">最新</option>
+          </select>
+        </label>
+      </div>
+      <div class="intel-strategy-grid" id="intelStrategyGrid">
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="crypto" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">主线 01</span>
+            <span class="intel-strategy-count" data-intel-lane-count="crypto">0 条</span>
+          </div>
+          <h3>币圈 / 加密</h3>
+          <p>盯 ETF、监管、交易所、链上安全、资金流和机构动作，不追散乱喊单。</p>
+        </button>
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="world" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">主线 02</span>
+            <span class="intel-strategy-count" data-intel-lane-count="world">0 条</span>
+          </div>
+          <h3>战争 / 全球大事</h3>
+          <p>重点是战争、地缘冲突、选举、灾害和会影响全球市场与秩序的事件。</p>
+        </button>
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="persistent" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">跟踪</span>
+            <span class="intel-strategy-count" data-intel-lane-count="persistent">0 条</span>
+          </div>
+          <h3>持续发酵</h3>
+          <p>专门保留跨时间窗口持续升温、被多次命中的事件，不让真正的大事一闪而过。</p>
+        </button>
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="hot" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">补充</span>
+            <span class="intel-strategy-count" data-intel-lane-count="hot">0 条</span>
+          </div>
+          <h3>热门事件补充</h3>
+          <p>只拿少量 AI、科技、宏观、灾害等额外热点，避免把主线挤掉。</p>
+        </button>
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="custom" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">自选</span>
+            <span class="intel-strategy-count" data-intel-lane-count="custom">0 条</span>
+          </div>
+          <h3>自定义关注</h3>
+          <p>你自己点名的 X 账号单独保留，不和主线抢位。</p>
+        </button>
+        <button type="button" class="intel-strategy-card" data-intel-lane-card="sent" aria-pressed="false">
+          <div class="intel-strategy-card-head">
+            <span class="intel-strategy-kicker">历史</span>
+            <span class="intel-strategy-count" data-intel-lane-count="sent">0 条</span>
+          </div>
+          <h3>已发送</h3>
+          <p>查看当前所选日期正式日报里已经发送或已计入去重的全部内容。</p>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel intel-focus-panel">
+      <div class="section-head">
+        <div class="section-title-wrap">
+          <h2 id="focusLaneTitle">币圈 / 加密情报</h2>
+          <p id="focusLaneDescription">切换上方方案卡片后，这里只显示对应板块的消息。</p>
+        </div>
+        <div class="headline-meta">
+          <span id="focusLaneKicker">主线 01</span>
+          <span id="focusLaneCount">0 条</span>
+        </div>
+      </div>
+      <div class="intel-lane-diagnostics">
+        <div class="summary-label" id="focusLaneSignalText">当前板块诊断 -</div>
+        <div class="evidence-strip" id="focusLaneSignalChips">
+          <span class="evidence-chip">等待数据</span>
+        </div>
+      </div>
+      <div class="x-focused-list" id="xFocusedList">
+        <article class="empty-card">尚无结果。点击“生成预览”开始。</article>
+      </div>
+    </section>
+
+    <main class="x-dashboard intel-layout" id="intelLayout" data-config-collapsed="false">
+      <section class="panel control-panel intel-config-panel" id="intelConfigPanel" data-collapsed="false">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <h2>情报配置</h2>
+            <p>默认 08:00 推送。建议保持“主线多、补充少”的配比，例如加密 8-12、世界 3-5、热门补充 1-2。</p>
+          </div>
+          <button type="button" class="btn btn-ghost intel-config-toggle" id="intelConfigToggle">收起配置</button>
+        </div>
+
+        <div class="intel-config-collapsed-copy" id="intelConfigCollapsedCopy" hidden>
+          配置面板已隐藏。点击右上角重新展开。
+        </div>
+
+        <div class="intel-config-body" id="intelConfigBody">
+          <form id="configForm" class="config-grid">
+            <label>
+              <span>每日推送时间（北京时间）</span>
+              <input type="text" id="dailyTime" placeholder="08:00" autocomplete="off">
+            </label>
+
+            <label>
+              <span>币圈/加密条数</span>
+              <input type="number" id="cryptoLimit" min="1" max="30" step="1" value="10">
+            </label>
+
+            <label>
+              <span>世界大事件条数</span>
+              <input type="number" id="worldLimit" min="1" max="20" step="1" value="3">
+            </label>
+
+            <label>
+              <span>热门补充条数</span>
+              <input type="number" id="hotLimit" min="0" max="8" step="1" value="2">
+            </label>
+
+            <label>
+              <span>自定义账号每人条数</span>
+              <input type="number" id="customUserLimit" min="1" max="10" step="1" value="3">
+            </label>
+
+            <label>
+              <span>自定义 X 用户列表（逗号分隔，不带 @）</span>
+              <input type="text" id="customUsers" placeholder="cz_binance,elonmusk" autocomplete="off">
+            </label>
+
+            <label>
+              <span>摘要模式</span>
+              <select id="summaryMode">
+                <option value="ai_first">AI 优先</option>
+                <option value="fallback_only">仅规则回退</option>
+              </select>
+            </label>
+
+            <label>
+              <span>AI 摘要模型</span>
+              <input type="text" id="summaryModel" placeholder="gpt-5.4" autocomplete="off">
+            </label>
+
+            <label>
+              <span>Telegram 目标 Chat ID / @频道名（可留空后自动识别）</span>
+              <input type="text" id="telegramChatId" placeholder="先给 @xinxiliu_bot 发 /start，再点下方识别" autocomplete="off">
+            </label>
+
+            <div class="action-row">
+              <button type="submit" class="btn btn-primary" id="saveConfigButton">保存配置</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel summary-panel intel-ops-panel">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <h2>运行概览</h2>
+            <p>把版本、板块条数、推送状态、摘要状态和手动生成入口集中在这里，阅读区不再被操作项打断。</p>
+          </div>
+        </div>
+
+        <div class="summary-grid compact">
+          <article class="summary-card compact">
+            <span class="summary-label">服务版本</span>
+            <strong id="xServiceVersion">-</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">币圈条数</span>
+            <strong id="summaryCryptoCount">0</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">世界条数</span>
+            <strong id="summaryWorldCount">0</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">持续发酵</span>
+            <strong id="summaryPersistentCount">0</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">热门补充</span>
+            <strong id="summaryHotCount">0</strong>
+          </article>
+          <article class="summary-card compact">
+            <span class="summary-label">自定义条数</span>
+            <strong id="summaryCustomCount">0</strong>
+          </article>
+        </div>
+
+        <div class="runtime-manage">
+          <div class="summary-label">opencli 与抓取入口</div>
+          <div class="action-row">
+            <button type="button" class="btn btn-secondary" id="xCheckButton">检查 opencli</button>
+          </div>
+          <div class="summary-label">后台每 2 小时自动抓取一次最新情报；opencli 状态由页头右上角实时显示。</div>
+        </div>
+
+        <div class="runtime-manage">
+          <div class="summary-label">Telegram 推送状态</div>
+          <div class="evidence-strip">
+            <span class="evidence-chip" id="telegramTokenStatus">Token -</span>
+            <span class="evidence-chip" id="telegramChatStatus">目标会话 -</span>
+            <span class="evidence-chip" id="telegramScheduleStatus">定时 -</span>
+          </div>
+          <div class="action-row">
+            <button type="button" class="btn btn-secondary" id="telegramRefreshButton">刷新 TG 状态</button>
+            <button type="button" class="btn btn-secondary" id="telegramResolveButton">识别最近会话</button>
+            <button type="button" class="btn btn-secondary" id="telegramTestButton">发送测试日报</button>
+            <button type="button" class="btn btn-secondary" id="telegramPendingConfirmButton" hidden>确认已发送</button>
+            <button type="button" class="btn btn-secondary" id="telegramPendingClearButton" hidden>清除待确认</button>
+          </div>
+          <div class="summary-label" id="telegramStatusText">TG 状态 -</div>
+        </div>
+
+        <div class="runtime-manage">
+          <div class="summary-label">摘要引擎状态</div>
+          <div class="evidence-strip">
+            <span class="evidence-chip" id="summaryModeStatus">模式 -</span>
+            <span class="evidence-chip" id="summaryProviderStatus">引擎 -</span>
+            <span class="evidence-chip" id="summaryRuntimeStatus">当前 -</span>
+          </div>
+          <div class="action-row">
+            <button type="button" class="btn btn-secondary" id="summaryRefreshButton">刷新摘要状态</button>
+          </div>
+          <div class="summary-label" id="summaryStatusText">摘要状态 -</div>
+        </div>
+
+        <div class="runtime-manage intel-observability-block">
+          <div class="summary-label">运行异常诊断</div>
+          <div class="summary-label" id="observabilityHeadline">运行诊断 -</div>
+          <div class="evidence-strip" id="observabilityChips">
+            <span class="evidence-chip">等待诊断</span>
+          </div>
+          <div class="summary-label" id="observabilityTrendText">趋势数据积累中。</div>
+          <div class="evidence-strip" id="observabilityTrendChips">
+            <span class="evidence-chip">等待样本</span>
+          </div>
+          <div class="intel-observability-list" id="observabilityList">
+            <article class="intel-observability-item" data-severity="ok">
+              <div class="intel-observability-item-head">
+                <strong>等待诊断数据</strong>
+                <span class="intel-observability-badge" data-severity="ok">正常</span>
+              </div>
+              <p>启动后会自动分析 X 候选、RSS 占比、AI 回退和后台抓取状态。</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="runtime-manage">
+          <div class="summary-label">手动生成日报</div>
+          <div class="action-row">
+            <button type="button" class="btn btn-primary" id="previewDigestButton">生成预览</button>
+          </div>
+          <div class="summary-label">这里只保留预览功能，不再提供手动正式版；每天 08:00 的正式发送链路保持不变。</div>
+        </div>
+
+        <div class="feedback" id="xFeedback">等待操作。</div>
+      </section>
+    </main>
+
+    <section class="panel summary-panel intel-digest-panel">
+      <div class="section-head">
+        <div class="section-title-wrap">
+          <h2>日报结果</h2>
+          <p>这里保留最终推送正文和生成统计。上面的阅读区负责浏览当前方案消息，这里负责看最终成稿。</p>
+        </div>
+      </div>
+
+      <div class="summary-label" id="digestBuildMeta">最近一次生成 -</div>
+      <div class="summary-label" id="digestSelectionMeta">当前规则诊断 -</div>
+
+      <div class="runtime-manage">
+        <div class="summary-label">日报正文（用于 TG 推送）</div>
+        <pre id="digestMessage" class="log-output intel-digest-output">尚未生成日报。</pre>
+      </div>
+    </section>
+
+    <section class="panel logs-panel">
+      <div class="section-head">
+        <h2>诊断信息</h2>
+        <p>显示 opencli doctor 输出，便于定位扩展连通问题。</p>
+      </div>
+      <pre id="xDoctorOutput" class="log-output">等待诊断输出。</pre>
+    </section>
+  </div>
+
+  <script type="module" src="/ui/js/intel/index.js?v=20260330-48"></script>
+</body>
+</html>

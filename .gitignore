@@ -3,4 +3,10 @@ __pycache__/
 .venv/
 venv/
 .env
+.monitor_ui.pid
+logs/
+data/*
+!data/.gitkeep
 Thumbs.db
+.DS_Store
+*.app/

@@ -57,6 +57,57 @@ Binance 公开市场数据不会暴露交易者身份，也不能证明每一笔
 python -m pip install -r requirements.txt
 ```
 
+## 页面结构（可切换）
+
+- 刷量监控面板：`http://127.0.0.1:8765/`
+- X 指定信息面板：`http://127.0.0.1:8765/x`
+- 两个页面顶部都有切换按钮，可随时互相跳转。
+
+## X 指定信息面板（opencli）
+
+该页面通过 `opencli` 抓取 X 信息（当前实现为“指定账号 + 关键词”的搜索）。
+
+前置要求：
+
+1. 安装 opencli：
+   ```bash
+   npm install -g @jackwener/opencli
+   ```
+2. 在 Chrome 安装并启用 opencli Browser Bridge 扩展。
+3. 在 Chrome 中登录 x.com。
+4. 执行 `opencli doctor` 显示 Extension connected 后再抓取。
+
+## Telegram 日报推送（本地）
+
+当前默认配置已经按北京时间执行：
+
+- 时区：`Asia/Shanghai`
+- 每日推送时间：`08:00`
+- bot token 保存在本地忽略文件：`data/intel_secrets.json`
+
+首次绑定 Telegram 目标会话时，需要先给机器人 `@xinxiliu_bot` 发送一次 `/start` 或任意消息，否则 Telegram 不会把你的 `chat_id` 暴露给 bot。
+
+常用命令：
+
+```bash
+./.venv/bin/python scripts/intel_daily_job.py status
+./.venv/bin/python scripts/intel_daily_job.py resolve-chat
+./.venv/bin/python scripts/intel_daily_job.py test-send
+./.venv/bin/python scripts/intel_daily_job.py run-daily --force
+```
+
+如果希望由 macOS 每天自动在本地执行一次日报检查并投递到 Telegram：
+
+```bash
+./install_daily_intel_launchd.sh
+```
+
+卸载本地日任务：
+
+```bash
+./uninstall_daily_intel_launchd.sh
+```
+
 ## UI 启动方式
 
 双击：
@@ -81,13 +132,42 @@ start_monitor_ui_hidden.vbs
 stop_monitor_ui.bat
 ```
 
-这个脚本会强制停止本项目对应的本地 UI / Python 后台进程。
+这个脚本会强制停止本项目对应的本地 UI / Python 后台进程，并尝试一并清理同项目目录下遗留在其他端口上的历史实例。
+
+macOS 对应脚本：
+
+```bash
+./start_monitor_ui_mac.sh
+./stop_monitor_ui_mac.sh
+./self_check_mac.sh
+```
+
+`start_monitor_ui_mac.sh` 现在会校验端口上的服务版本是否真的是当前代码版本；如果旧进程仍然占着 `8765`，脚本会直接报错退出，而不是误报“started”。
 
 默认访问地址：
 
 ```text
 http://127.0.0.1:8765
 ```
+
+## GitHub Releases
+
+仓库已接入 GitHub Actions 的 release 工作流：
+
+- 工作流文件：`.github/workflows/release.yml`
+- 触发方式：推送形如 `v*` 的 tag
+- 打包环境：GitHub Actions 干净环境
+- 产物内容：基于当前 tag 的源码 zip、tar.gz 和 SHA256 校验文件
+
+发布新版本的最简流程：
+
+```bash
+git push origin main
+git tag v20260330-sync-46
+git push origin v20260330-sync-46
+```
+
+Tag 推上去之后，GitHub 会在干净环境里先安装依赖、跑测试，再自动创建 Release 并上传打包产物。
 
 在 UI 中可以调整：
 

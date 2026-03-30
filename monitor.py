@@ -8,6 +8,7 @@ import asyncio
 import json
 import math
 import signal
+import ssl
 import statistics
 import sys
 import threading
@@ -22,11 +23,20 @@ from typing import Callable, Deque, Iterable, Optional
 
 import websockets
 
-REST_BASE = "https://api.binance.com"
+REST_BASES = (
+    "https://api.binance.com",
+    "https://api1.binance.com",
+    "https://api2.binance.com",
+    "https://api3.binance.com",
+    "https://data-api.binance.vision",
+)
+REST_BASE = REST_BASES[0]
 WS_BASE = "wss://stream.binance.com:9443/stream?streams="
 LogFn = Callable[[str], None]
 DEFAULT_DEPTH_BAND_FRACTION = 0.002
 DEFAULT_SLIPPAGE_REFERENCE_QUOTE = 10_000.0
+_preferred_rest_base = REST_BASE
+_rest_base_lock = threading.Lock()
 
 
 def clamp(value: float, lower: float, upper: float) -> float:
@@ -1163,21 +1173,71 @@ def build_overall_judgement(windows: list[dict[str, object]]) -> dict[str, objec
     }
 
 
-def fetch_json(url: str) -> object:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "bn-wash-monitor/1.0",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        return json.loads(response.read().decode("utf-8"))
+def _ordered_rest_bases() -> list[str]:
+    with _rest_base_lock:
+        preferred = _preferred_rest_base
+    return [preferred, *[base for base in REST_BASES if base != preferred]]
 
 
-def load_symbol_info(symbol: str) -> SymbolInfo:
-    query = urllib.parse.urlencode({"symbol": symbol.upper()})
-    payload = fetch_json(f"{REST_BASE}/api/v3/exchangeInfo?{query}")
+def _set_preferred_rest_base(base: str) -> None:
+    global _preferred_rest_base
+    with _rest_base_lock:
+        _preferred_rest_base = base
+
+
+def fetch_json(
+    path: str,
+    params: Optional[dict[str, object]] = None,
+    *,
+    timeout: float = 20.0,
+    attempts_per_base: int = 2,
+    logger: Optional[LogFn] = None,
+) -> object:
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    query = f"?{urllib.parse.urlencode(params)}" if params else ""
+    ordered_bases = _ordered_rest_bases()
+    last_error: Optional[BaseException] = None
+
+    for base_index, base in enumerate(ordered_bases):
+        url = f"{base}{normalized_path}{query}"
+        for attempt in range(1, attempts_per_base + 1):
+            request = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "bn-wash-monitor/1.0",
+                    "Accept": "application/json",
+                },
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                _set_preferred_rest_base(base)
+                return payload
+            except urllib.error.HTTPError as exc:
+                if 400 <= exc.code < 500 and exc.code not in {408, 429}:
+                    raise
+                last_error = exc
+            except (urllib.error.URLError, TimeoutError, OSError, ssl.SSLError, json.JSONDecodeError) as exc:
+                last_error = exc
+
+            should_log = logger is not None and (attempt < attempts_per_base or base_index + 1 < len(ordered_bases))
+            if should_log:
+                emit_log(
+                    (
+                        f"[{format_clock()}] warning=rest request failed "
+                        f"base={base} path={normalized_path} attempt={attempt}/{attempts_per_base}: {last_error}"
+                    ),
+                    logger,
+                )
+            if attempt < attempts_per_base:
+                time.sleep(min(1.2 * attempt, 2.5))
+
+    assert last_error is not None
+    raise RuntimeError(f"rest bootstrap failed for {normalized_path}: {last_error}")
+
+
+def load_symbol_info(symbol: str, logger: Optional[LogFn] = None) -> SymbolInfo:
+    payload = fetch_json("/api/v3/exchangeInfo", {"symbol": symbol.upper()}, logger=logger)
     symbols = payload.get("symbols", [])
     if not symbols:
         raise RuntimeError(f"symbol {symbol.upper()} not found on Binance spot exchangeInfo")
@@ -1197,15 +1257,16 @@ def load_symbol_info(symbol: str) -> SymbolInfo:
     )
 
 
-def load_initial_klines(symbol: str, limit: int) -> list[list[object]]:
-    query = urllib.parse.urlencode(
+def load_initial_klines(symbol: str, limit: int, logger: Optional[LogFn] = None) -> list[list[object]]:
+    payload = fetch_json(
+        "/api/v3/klines",
         {
             "symbol": symbol.upper(),
             "interval": "1m",
             "limit": min(max(limit, 1), 1000),
-        }
+        },
+        logger=logger,
     )
-    payload = fetch_json(f"{REST_BASE}/api/v3/klines?{query}")
     if not isinstance(payload, list):
         raise RuntimeError("unexpected kline response")
     if payload and int(payload[-1][6]) / 1000.0 > time.time():
@@ -1213,14 +1274,15 @@ def load_initial_klines(symbol: str, limit: int) -> list[list[object]]:
     return payload
 
 
-def load_order_book_snapshot(symbol: str, limit: int = 1000) -> dict[str, object]:
-    query = urllib.parse.urlencode(
+def load_order_book_snapshot(symbol: str, limit: int = 1000, logger: Optional[LogFn] = None) -> dict[str, object]:
+    payload = fetch_json(
+        "/api/v3/depth",
         {
             "symbol": symbol.upper(),
             "limit": min(max(limit, 100), 5000),
-        }
+        },
+        logger=logger,
     )
-    payload = fetch_json(f"{REST_BASE}/api/v3/depth?{query}")
     if not isinstance(payload, dict):
         raise RuntimeError("unexpected depth snapshot response")
     return payload
@@ -1248,10 +1310,10 @@ def create_monitor(
     logger: Optional[LogFn] = None,
 ) -> WashVolumeMonitor:
     emit_log(f"[{format_clock()}] checking symbol={symbol.upper()}", logger)
-    symbol_info = load_symbol_info(symbol)
+    symbol_info = load_symbol_info(symbol, logger=logger)
     emit_log(f"[{format_clock()}] loading baseline_klines={baseline_minutes}", logger)
     baseline_tracker = BaselineTracker(max_minutes=min(max(baseline_minutes, 1), 1000))
-    baseline_tracker.seed_from_klines(load_initial_klines(symbol, baseline_minutes))
+    baseline_tracker.seed_from_klines(load_initial_klines(symbol, baseline_minutes, logger=logger))
     return WashVolumeMonitor(
         symbol=symbol,
         symbol_info=symbol_info,
@@ -1302,7 +1364,7 @@ async def stream_loop(
                 close_timeout=1,
             ) as websocket:
                 monitor.reset_depth_book()
-                snapshot = await asyncio.to_thread(load_order_book_snapshot, symbol, 1000)
+                snapshot = await asyncio.to_thread(load_order_book_snapshot, symbol, 1000, logger)
                 monitor.bootstrap_depth_book(snapshot)
                 emit_log(
                     f"[{format_clock()}] depth_snapshot=ready lastUpdateId={snapshot['lastUpdateId']}",
