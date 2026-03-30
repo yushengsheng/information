@@ -1,4 +1,4 @@
-name: Release
+name: 发布
 
 on:
   push:
@@ -11,30 +11,35 @@ permissions:
 
 jobs:
   build-and-release:
+    name: 打包并发布
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Check Out
+      - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set Up Python
+      - name: 安装 Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: 安装依赖
         run: |
+          echo "开始安装项目依赖..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Tests
-        run: python -m unittest discover -s tests -p 'test_*.py'
-
-      - name: Build Release Artifacts
+      - name: 运行测试
         run: |
+          echo "开始执行单元测试..."
+          python -m unittest discover -s tests -p 'test_*.py'
+
+      - name: 构建发布产物
+        run: |
+          echo "开始在 GitHub 干净环境中构建发布包..."
           mkdir -p dist
           VERSION="${GITHUB_REF_NAME}"
           PREFIX="information-${VERSION}"
@@ -44,12 +49,28 @@ jobs:
             cd dist
             sha256sum "${PREFIX}.zip" "${PREFIX}.tar.gz" > "${PREFIX}-SHA256SUMS.txt"
           )
+          cat > "dist/RELEASE_NOTES.md" <<EOF
+          本次发布由 GitHub Actions 在干净环境中自动构建并上传。
 
-      - name: Publish GitHub Release
+          发布版本：${VERSION}
+
+          发布产物：
+          - ${PREFIX}.zip
+          - ${PREFIX}.tar.gz
+          - ${PREFIX}-SHA256SUMS.txt
+
+          自动生成的更新日志见下方。
+          EOF
+
+      - name: 发布到 GitHub Releases
         run: |
           VERSION="${GITHUB_REF_NAME}"
+          TITLE="信息大爆炸 ${VERSION}"
           if gh release view "${VERSION}" >/dev/null 2>&1; then
             gh release upload "${VERSION}" dist/* --clobber
           else
-            gh release create "${VERSION}" dist/* --title "${VERSION}" --generate-notes
+            gh release create "${VERSION}" dist/information-"${VERSION}"* \
+              --title "${TITLE}" \
+              --notes-file "dist/RELEASE_NOTES.md" \
+              --generate-notes
           fi

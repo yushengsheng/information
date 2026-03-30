@@ -150,14 +150,15 @@ macOS 对应脚本：
 http://127.0.0.1:8765
 ```
 
-## GitHub Releases
+## GitHub 发布
 
-仓库已接入 GitHub Actions 的 release 工作流：
+仓库已接入 GitHub Actions 的自动发布工作流：
 
 - 工作流文件：`.github/workflows/release.yml`
 - 触发方式：推送形如 `v*` 的 tag
 - 打包环境：GitHub Actions 干净环境
 - 产物内容：基于当前 tag 的源码 zip、tar.gz 和 SHA256 校验文件
+- 发布展示：中文标题、中文发布说明、中文更新日志分类
 
 发布新版本的最简流程：
 
@@ -167,7 +168,13 @@ git tag v20260330-sync-46
 git push origin v20260330-sync-46
 ```
 
-Tag 推上去之后，GitHub 会在干净环境里先安装依赖、跑测试，再自动创建 Release 并上传打包产物。
+Tag 推上去之后，GitHub 会在干净环境里先安装依赖、运行测试，再自动创建 GitHub Release 并上传打包产物。
+
+如果只是想修改当前已经发布的版本说明，也可以直接使用 GitHub CLI：
+
+```bash
+gh release edit v20260330-sync-46 --title "信息大爆炸 v20260330-sync-46"
+```
 
 在 UI 中可以调整：
 

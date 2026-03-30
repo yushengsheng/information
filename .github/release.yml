@@ -1,0 +1,35 @@
+changelog:
+  exclude:
+    labels:
+      - skip-release-notes
+      - ignore-for-release
+    authors:
+      - github-actions[bot]
+  categories:
+    - title: 核心功能
+      labels:
+        - feature
+        - enhancement
+        - feat
+    - title: 问题修复
+      labels:
+        - fix
+        - bug
+        - bugfix
+    - title: 稳定性与性能
+      labels:
+        - perf
+        - performance
+        - stability
+        - reliability
+    - title: 文档与工程维护
+      labels:
+        - docs
+        - chore
+        - refactor
+        - test
+        - ci
+        - build
+    - title: 其他更新
+      labels:
+        - "*"
