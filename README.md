@@ -164,8 +164,8 @@ http://127.0.0.1:8765
 
 ```bash
 git push origin main
-git tag v20260330-sync-46
-git push origin v20260330-sync-46
+git tag v<版本号>
+git push origin v<版本号>
 ```
 
 Tag 推上去之后，GitHub 会在干净环境里先安装依赖、运行测试，再自动创建 GitHub Release 并上传打包产物。
@@ -173,7 +173,7 @@ Tag 推上去之后，GitHub 会在干净环境里先安装依赖、运行测试
 如果只是想修改当前已经发布的版本说明，也可以直接使用 GitHub CLI：
 
 ```bash
-gh release edit v20260330-sync-46 --title "信息大爆炸 v20260330-sync-46"
+gh release edit v<版本号> --title "信息大爆炸 v<版本号>"
 ```
 
 在 UI 中可以调整：
