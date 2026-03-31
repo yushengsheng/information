@@ -88,6 +88,62 @@ class IntelStoreTests(unittest.TestCase):
             self.assertEqual(payload["sent_digest_date"], "2026-03-29")
             self.assertEqual(payload["sent_sections"]["world"][0]["id"], "sent-1")
 
+    def test_load_latest_digest_rebuilds_legacy_message_from_sections(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir)
+            latest_sent_file = data_dir / "intel_latest_sent_digest.json"
+            history_file = data_dir / "intel_digest_history.json"
+
+            sent_payload = {
+                "digest_date": "2026-03-31",
+                "generated_at": "2026-03-31T08:00:00+08:00",
+                "sections": {
+                    "crypto": [
+                        {
+                            "source": "x",
+                            "author": "alice",
+                            "summary_text": "Bitcoin jumps on ETF hopes",
+                            "original_text": "Bitcoin jumps on ETF hopes",
+                            "url": "https://example.com/crypto",
+                        }
+                    ],
+                    "world": [],
+                    "persistent": [],
+                    "hot": [],
+                    "custom": [],
+                },
+                "config": {"daily_push_time": "08:00", "limits": {"hot": 2}},
+                "message": "old english body",
+                "message_html": "old english html",
+                "final": True,
+            }
+            latest_sent_file.write_text(json.dumps(sent_payload, ensure_ascii=False), encoding="utf-8")
+            history_file.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "retention_days": 3,
+                        "items": [{"digest_date": "2026-03-31", "payload": sent_payload}],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.object(store, "DATA_DIR", data_dir), patch.object(
+                store,
+                "INTEL_LATEST_SENT_FILE",
+                latest_sent_file,
+            ), patch.object(store, "INTEL_HISTORY_FILE", history_file), patch(
+                "services.intel.digest.translate_text_to_chinese",
+                autospec=True,
+                side_effect=lambda value: {"Bitcoin jumps on ETF hopes": "比特币因 ETF 预期上涨"}.get(value, value),
+            ):
+                payload = store.load_latest_digest("2026-03-31")
+
+            self.assertIn("比特币因 ETF 预期上涨", payload["message"])
+            self.assertNotIn("old english body", payload["message"])
+
     def test_load_observability_history_prunes_expired_items(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             data_dir = Path(tmpdir)

@@ -26,7 +26,7 @@ from services.intel.ranking import (
 )
 from services.intel.store import load_intel_config, load_sent_registry, save_latest_digest, save_latest_sent_digest, save_sent_registry
 from services.intel.store import load_event_pool_since, load_snapshot_pool_since, save_event_pool_entries, save_snapshot_pool_entry
-from services.intel.text import item_dedupe_key, normalize_text, normalize_tweet_text, short_summary_text
+from services.intel.text import item_dedupe_key, normalize_text, normalize_tweet_text, short_summary_text, translate_text_to_chinese
 
 _DIGEST_ORIGINAL_LINK_PATTERN = re.compile(r"^原文：(https?://\S+)$")
 _DIGEST_NUMBER_MARKERS = {
@@ -186,8 +186,102 @@ def _build_selection_diagnostics(sections: dict[str, list[dict[str, object]]]) -
 def _item_summary_text(item: dict[str, object], max_len: int) -> str:
     summary_text = normalize_text(item.get("summary_text"))
     if summary_text:
-        return short_summary_text(summary_text, max_len=max_len)
-    return short_summary_text(normalize_tweet_text(item.get("text")), max_len=max_len)
+        translated_summary = translate_text_to_chinese(summary_text)
+        return short_summary_text(translated_summary or summary_text, max_len=max_len)
+
+    display_text = normalize_text(item.get("display_text"))
+    if display_text:
+        return short_summary_text(display_text, max_len=max_len)
+
+    original_text = normalize_tweet_text(item.get("original_text") or item.get("text"))
+    translated_original = translate_text_to_chinese(original_text)
+    return short_summary_text(translated_original or original_text, max_len=max_len)
+
+
+def rebuild_digest_message_payload(payload: dict[str, object]) -> dict[str, object]:
+    rebuilt = dict(payload if isinstance(payload, dict) else {})
+    cfg = rebuilt.get("config") if isinstance(rebuilt.get("config"), dict) else load_intel_config()
+    limits = cfg.get("limits") if isinstance(cfg.get("limits"), dict) else {}
+    hot_limit = int(limits.get("hot", 2)) if isinstance(limits, dict) else 2
+    sections_raw = rebuilt.get("sections") if isinstance(rebuilt.get("sections"), dict) else {}
+    sections = _empty_topic_sections()
+    for key in sections:
+        rows = sections_raw.get(key) if isinstance(sections_raw, dict) else []
+        if isinstance(rows, list):
+            sections[key] = [dict(row) for row in rows if isinstance(row, dict)]
+
+    date_text = normalize_text(rebuilt.get("digest_date"))
+    if not date_text:
+        timezone_name = normalize_text(cfg.get("timezone")) or "Asia/Shanghai"
+        try:
+            date_text = datetime.now(ZoneInfo(timezone_name)).strftime("%Y-%m-%d")
+        except ZoneInfoNotFoundError:
+            date_text = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+    daily_push_time = normalize_text(cfg.get("daily_push_time")) or "08:00"
+    lines = [f"【信息大爆炸日报 | {date_text} {daily_push_time}】", ""]
+    html_lines = [html.escape(lines[0]), ""]
+
+    def append_digest_entry(index: int, tag: str, text: str, url: str) -> None:
+        content = f"{_digest_item_marker(index)} {tag} {text}".strip()
+        lines.append(content)
+        html_lines.append(html.escape(content))
+        lines.append(f"原文：{url}")
+        html_lines.append(_digest_original_link_html(url))
+
+    def add_section(title: str, section_items: list[dict[str, object]], *, max_len: int = 110) -> None:
+        lines.append(f"{title}（{len(section_items)}条）")
+        html_lines.append(html.escape(lines[-1]))
+        if not section_items:
+            lines.append("- 今日无新增高价值信息")
+            html_lines.append(html.escape(lines[-1]))
+            lines.append("")
+            html_lines.append("")
+            return
+        for index, item in enumerate(section_items, 1):
+            if index > 1:
+                lines.append("")
+                html_lines.append("")
+            text = _item_summary_text(item, max_len=max_len)
+            url = normalize_text(item.get("url")) or "-"
+            source = normalize_text(item.get("source")).upper() or "SRC"
+            author = normalize_text(item.get("author"))
+            tag = f"[{source}]" + (f" @{author}" if author else "")
+            append_digest_entry(index, tag, text, url)
+        lines.append("")
+        html_lines.append("")
+
+    crypto_selected = sections["crypto"]
+    world_selected = sections["world"]
+    persistent_selected = sections["persistent"]
+    hot_selected = sections["hot"]
+    custom_selected = sections["custom"]
+
+    add_section(_section_title(1, "币圈/加密"), crypto_selected)
+    add_section(_section_title(2, "世界大事件"), world_selected)
+    next_section_index = 3
+    if persistent_selected:
+        add_section(_section_title(next_section_index, "持续发酵"), persistent_selected)
+        next_section_index += 1
+    if hot_limit > 0 or hot_selected:
+        add_section(_section_title(next_section_index, "热门补充"), hot_selected)
+        next_section_index += 1
+    if custom_selected:
+        add_section(_section_title(next_section_index, "自定义关注账号"), custom_selected, max_len=100)
+
+    summary_note = "摘要优先使用 AI 生成；不可用时自动回退到翻译 + 截断。"
+    lines.append(f"说明：主线优先跟踪币圈/加密与世界大事，“持续发酵”专门保留跨时间窗口仍在升温的重要事件，热门补充仅少量加入其他高热度事件；已去重；X 为主源，Reddit/RSS 为补充；{summary_note} 点击原文可追溯来源。")
+    html_lines.append(html.escape(lines[-1]))
+
+    rebuilt["message"] = "\n".join(lines).strip()
+    rebuilt["message_html"] = "\n".join(html_lines).strip()
+    rebuilt["counts"] = {
+        "crypto": len(crypto_selected),
+        "world": len(world_selected),
+        "persistent": len(persistent_selected),
+        "hot": len(hot_selected),
+        "custom": len(custom_selected),
+    }
+    return rebuilt
 
 
 def _exclude_seen_items(items: list[dict[str, object]], seen_items: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -550,68 +644,6 @@ def build_digest_payload(
         timezone_name = "Asia/Shanghai"
         now_value = datetime.now(ZoneInfo(timezone_name))
     date_text = now_value.strftime("%Y-%m-%d")
-    daily_push_time = normalize_text(cfg.get("daily_push_time")) or "08:00"
-    lines = [f"【信息大爆炸日报 | {date_text} {daily_push_time}】", ""]
-    html_lines = [html.escape(lines[0]), ""]
-
-    def append_digest_entry(index: int, tag: str, text: str, url: str) -> None:
-        content = f"{_digest_item_marker(index)} {tag} {text}".strip()
-        lines.append(content)
-        html_lines.append(html.escape(content))
-        lines.append(f"原文：{url}")
-        html_lines.append(_digest_original_link_html(url))
-
-    def add_section(title: str, section_items: list[dict[str, object]], max_n: int) -> None:
-        lines.append(f"{title}（{len(section_items)}条）")
-        html_lines.append(html.escape(lines[-1]))
-        if not section_items:
-            lines.append("- 今日无新增高价值信息")
-            html_lines.append(html.escape(lines[-1]))
-            lines.append("")
-            html_lines.append("")
-            return
-        for index, item in enumerate(section_items[:max_n], 1):
-            if index > 1:
-                lines.append("")
-                html_lines.append("")
-            text = _item_summary_text(item, max_len=110)
-            url = normalize_text(item.get("url")) or "-"
-            source = normalize_text(item.get("source")).upper() or "SRC"
-            author = normalize_text(item.get("author"))
-            tag = f"[{source}]" + (f" @{author}" if author else "")
-            append_digest_entry(index, tag, text, url)
-        lines.append("")
-        html_lines.append("")
-
-    add_section(_section_title(1, "币圈/加密"), crypto_selected, crypto_limit)
-    add_section(_section_title(2, "世界大事件"), world_selected, world_limit)
-    next_section_index = 3
-    if persistent_selected:
-        add_section(_section_title(next_section_index, "持续发酵"), persistent_selected, persistent_limit)
-        next_section_index += 1
-    if hot_limit > 0 or hot_selected:
-        add_section(_section_title(next_section_index, "热门补充"), hot_selected, hot_limit)
-        next_section_index += 1
-
-    if custom_selected:
-        lines.append(f"{_section_title(next_section_index, '自定义关注账号')}（{len(custom_selected)}条）")
-        html_lines.append(html.escape(lines[-1]))
-        index = 1
-        for owner, group in custom_grouped.items():
-            for item in group[:custom_limit]:
-                if index > 1:
-                    lines.append("")
-                    html_lines.append("")
-                text = _item_summary_text(item, max_len=100)
-                url = normalize_text(item.get("url")) or "-"
-                append_digest_entry(index, f"[X] @{owner}", text, url)
-                index += 1
-        lines.append("")
-        html_lines.append("")
-
-    summary_note = "摘要优先使用 AI 生成；不可用时自动回退到翻译 + 截断。"
-    lines.append(f"说明：主线优先跟踪币圈/加密与世界大事，“持续发酵”专门保留跨时间窗口仍在升温的重要事件，热门补充仅少量加入其他高热度事件；已去重；X 为主源，Reddit/RSS 为补充；{summary_note} 点击原文可追溯来源。")
-    html_lines.append(html.escape(lines[-1]))
     payload = {
         "ok": True,
         "app_version": APP_VERSION,
@@ -619,8 +651,6 @@ def build_digest_payload(
         "generated_at": format_clock(),
         "config": cfg,
         "sections": sections,
-        "message": "\n".join(lines).strip(),
-        "message_html": "\n".join(html_lines).strip(),
         "summary": summary_meta,
         "counts": {
             "crypto": len(crypto_selected),
@@ -659,6 +689,7 @@ def build_digest_payload(
     }
     if isinstance(window_meta, dict) and window_meta:
         payload["build_stats"]["window"] = dict(window_meta)
+    payload = rebuild_digest_message_payload(payload)
 
     if final:
         return finalize_digest_payload(payload)

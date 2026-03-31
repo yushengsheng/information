@@ -77,6 +77,54 @@ def _item(
 
 
 class IntelDigestTests(unittest.TestCase):
+    @patch.object(digest, "translate_text_to_chinese", autospec=True)
+    def test_rebuild_digest_message_payload_translates_legacy_english_summary(
+        self,
+        mock_translate_text_to_chinese,
+    ) -> None:
+        mock_translate_text_to_chinese.side_effect = lambda value: {
+            "Bitcoin jumps on ETF hopes": "比特币因 ETF 预期上涨",
+            "Trump says sanctions may expand": "特朗普称制裁可能扩大",
+        }.get(value, value)
+        payload = {
+            "digest_date": "2026-03-31",
+            "config": {
+                "daily_push_time": "08:00",
+                "limits": {"hot": 2},
+            },
+            "sections": {
+                "crypto": [
+                    {
+                        "source": "x",
+                        "author": "user1",
+                        "summary_text": "Bitcoin jumps on ETF hopes",
+                        "original_text": "Bitcoin jumps on ETF hopes",
+                        "url": "https://example.com/crypto",
+                    }
+                ],
+                "world": [
+                    {
+                        "source": "rss",
+                        "author": "user2",
+                        "summary_text": "Trump says sanctions may expand",
+                        "original_text": "Trump says sanctions may expand",
+                        "url": "https://example.com/world",
+                    }
+                ],
+                "persistent": [],
+                "hot": [],
+                "custom": [],
+            },
+            "message": "旧英文正文",
+            "message_html": "old html",
+        }
+
+        rebuilt = digest.rebuild_digest_message_payload(payload)
+
+        self.assertIn("比特币因 ETF 预期上涨", rebuilt["message"])
+        self.assertIn("特朗普称制裁可能扩大", rebuilt["message"])
+        self.assertNotIn("旧英文正文", rebuilt["message"])
+
     @patch.object(digest, "load_event_pool_since", autospec=True)
     def test_build_event_pool_candidate_pool_merges_stored_and_live_entries(
         self,

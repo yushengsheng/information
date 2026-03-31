@@ -299,6 +299,20 @@ def _normalize_digest_payload(payload: object) -> dict[str, object] | None:
     return normalized
 
 
+def _refresh_digest_payload_content(payload: dict[str, object] | None) -> dict[str, object] | None:
+    normalized = _normalize_digest_payload(payload)
+    if not normalized:
+        return None
+    if not isinstance(normalized.get("sections"), dict):
+        return normalized
+    try:
+        from services.intel.digest import rebuild_digest_message_payload
+
+        return rebuild_digest_message_payload(normalized)
+    except Exception:
+        return normalized
+
+
 def _read_digest_file(path) -> dict[str, object] | None:
     data = _read_json_locked(path)
     if isinstance(data, dict):
@@ -384,7 +398,7 @@ def list_digest_dates() -> list[str]:
 
 
 def load_latest_sent_digest() -> dict[str, object] | None:
-    latest_sent = _normalize_digest_payload(_read_digest_file(INTEL_LATEST_SENT_FILE))
+    latest_sent = _refresh_digest_payload_content(_read_digest_file(INTEL_LATEST_SENT_FILE))
     if latest_sent:
         result = dict(latest_sent)
         result["final"] = bool(result.get("final", True))
@@ -394,12 +408,12 @@ def load_latest_sent_digest() -> dict[str, object] | None:
     if history_items:
         payload = history_items[0].get("payload")
         if isinstance(payload, dict):
-            result = dict(payload)
+            result = dict(_refresh_digest_payload_content(payload) or payload)
             result["exists"] = True
             result["final"] = bool(result.get("final", True))
             return result
 
-    legacy_latest = _normalize_digest_payload(_read_latest_digest_file())
+    legacy_latest = _refresh_digest_payload_content(_read_latest_digest_file())
     if legacy_latest and bool(legacy_latest.get("final")):
         result = dict(legacy_latest)
         result["final"] = True
@@ -431,7 +445,7 @@ def load_latest_digest(selected_date: str | None = None) -> dict[str, object]:
                 continue
             payload = entry.get("payload")
             if isinstance(payload, dict):
-                result = dict(payload)
+                result = dict(_refresh_digest_payload_content(payload) or payload)
                 result["exists"] = True
                 result["selected_date"] = selected_date
                 result["available_dates"] = available_dates
@@ -445,7 +459,7 @@ def load_latest_digest(selected_date: str | None = None) -> dict[str, object]:
             "display_source": "history",
         }, latest_sent)
 
-    latest_payload = _normalize_digest_payload(_read_latest_digest_file())
+    latest_payload = _refresh_digest_payload_content(_read_latest_digest_file())
     if latest_payload:
         result = dict(latest_payload)
         result["exists"] = True
@@ -465,7 +479,7 @@ def load_latest_digest(selected_date: str | None = None) -> dict[str, object]:
     if history_items:
         payload = history_items[0].get("payload")
         if isinstance(payload, dict):
-            result = dict(payload)
+            result = dict(_refresh_digest_payload_content(payload) or payload)
             result["exists"] = True
             result["selected_date"] = str(history_items[0].get("digest_date") or "")
             result["available_dates"] = available_dates
