@@ -150,12 +150,17 @@ function buildItemMetaChips(item) {
   }
   const source = escapeHtml((item.source || "").toUpperCase() || "SRC");
   const author = escapeHtml(item.author || "-");
-  const summaryMode = item.summary_mode === "ai" ? "AI 摘要" : "规则摘要";
+  const summaryMode = item.summary_mode === "ai" ? "日报摘要 AI" : "日报摘要 规则";
+  const displayText = String(item.display_text || "").trim();
+  const originalText = String(item.original_text || "").trim();
   chips.push(`<span class="evidence-chip">来源 ${source}</span>`);
   if (item.source_role_label) {
     chips.push(`<span class="evidence-chip">${escapeHtml(item.source_role_label)}</span>`);
   }
   chips.push(`<span class="evidence-chip">@${author}</span>`);
+  if (displayText) {
+    chips.push(`<span class="evidence-chip">${displayText !== originalText ? "显示 译文" : "显示 原文"}</span>`);
+  }
   chips.push(`<span class="evidence-chip">${summaryMode}</span>`);
 
   if (item.cluster_size) {
@@ -263,7 +268,7 @@ function renderFocusedLane() {
 
   intelDom.focusedList.innerHTML = items.map((item, index) => {
     const source = escapeHtml((item.source || "").toUpperCase() || "SRC");
-    const text = escapeHtml(item.summary_text || item.text || "");
+    const text = escapeHtml(item.display_text || item.summary_text || item.text || "");
     const createdAt = item.created_at ? `<span class="evidence-chip">${escapeHtml(item.created_at)}</span>` : "";
     const rank = String(index + 1).padStart(2, "0");
     const laneKicker = escapeHtml(item.__laneKicker || lane.kicker);

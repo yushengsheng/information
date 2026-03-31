@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from services.intel.store import load_intel_config, load_intel_secrets
-from services.intel.text import normalize_text, normalize_tweet_text, short_summary_text, translate_text_to_chinese
+from services.intel.text import normalize_text, normalize_tweet_text, populate_display_text, short_summary_text, translate_text_to_chinese
 
 DEFAULT_SUMMARY_MODE = "ai_first"
 DEFAULT_SUMMARY_MODEL = "gpt-5.4"
@@ -503,6 +503,8 @@ def apply_digest_summaries(sections: dict[str, list[dict[str, object]]], cfg: di
             item["original_text"] = normalize_tweet_text(item.get("text"))
             item["_summary_key"] = f"{section_name}:{index}"
             items.append(item)
+
+    populate_display_text(items)
 
     if not items:
         return {

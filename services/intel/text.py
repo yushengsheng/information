@@ -110,13 +110,31 @@ def contains_chinese(text: str) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", text))
 
 
+def looks_like_chinese_text(text: str) -> bool:
+    cleaned = normalize_tweet_text(text)
+    if not cleaned:
+        return False
+    if not contains_chinese(cleaned):
+        return False
+    # 日文假名和韩文说明这不是“中文原文”，应继续走翻译。
+    if re.search(r"[\u3040-\u30ff\u31f0-\u31ff\uac00-\ud7af]", cleaned):
+        return False
+    return True
+
+
 def should_translate_to_chinese(text: str) -> bool:
     cleaned = normalize_tweet_text(text)
     if not cleaned:
         return False
-    if contains_chinese(cleaned):
+    if looks_like_chinese_text(cleaned):
         return False
-    return bool(re.search(r"[A-Za-z]", cleaned))
+    stripped = re.sub(r"https?://\S+", " ", cleaned)
+    stripped = re.sub(r"@[A-Za-z0-9_]{1,32}", " ", stripped)
+    stripped = re.sub(r"#[^\s#]+", " ", stripped)
+    stripped = re.sub(r"\s+", " ", stripped).strip()
+    if not stripped:
+        return False
+    return bool(re.search(r"[^\W\d_]", stripped, flags=re.UNICODE))
 
 
 def translate_text_to_chinese(text: str) -> str:
@@ -144,14 +162,14 @@ def translate_text_to_chinese(text: str) -> str:
     return final_text
 
 
-def translate_items_for_display(items: list[dict[str, object]]) -> list[dict[str, object]]:
+def populate_display_text(items: list[dict[str, object]]) -> list[dict[str, object]]:
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     pending: dict[str, list[dict[str, object]]] = {}
     for item in items:
-        original_text = normalize_tweet_text(item.get("text"))
+        original_text = normalize_tweet_text(item.get("original_text") or item.get("text"))
         item["original_text"] = original_text
-        item["text"] = original_text
+        item["display_text"] = original_text
         if should_translate_to_chinese(original_text):
             pending.setdefault(original_text, []).append(item)
 
@@ -171,7 +189,14 @@ def translate_items_for_display(items: list[dict[str, object]]) -> list[dict[str
             except Exception:
                 translated_text = source_text
             for item in pending[source_text]:
-                item["text"] = translated_text
+                item["display_text"] = normalize_tweet_text(translated_text) or source_text
+    return items
+
+
+def translate_items_for_display(items: list[dict[str, object]]) -> list[dict[str, object]]:
+    populate_display_text(items)
+    for item in items:
+        item["text"] = normalize_tweet_text(item.get("display_text"))
     return items
 
 
