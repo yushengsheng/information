@@ -13,6 +13,7 @@ from app_config import (
     DATA_DIR,
     INTEL_CONFIG_FILE,
     INTEL_BUILD_TASK_FILE,
+    INTEL_DAILY_PUSH_TIME,
     INTEL_DELIVERY_STATE_FILE,
     INTEL_EVENT_POOL_FILE,
     INTEL_HISTORY_FILE,
@@ -96,7 +97,7 @@ def default_intel_config() -> dict[str, object]:
     return {
         "config_version": 3,
         "timezone": "Asia/Shanghai",
-        "daily_push_time": "08:00",
+        "daily_push_time": INTEL_DAILY_PUSH_TIME,
         "daily_enabled": True,
         "limits": {
             "crypto": 10,
@@ -170,9 +171,9 @@ def save_intel_config(patch: dict[str, object]) -> dict[str, object]:
             timezone_name = "Asia/Shanghai"
         merged["timezone"] = timezone_name
 
-        daily_push_time = str(merged.get("daily_push_time") or "08:00").strip()
+        daily_push_time = str(merged.get("daily_push_time") or INTEL_DAILY_PUSH_TIME).strip()
         if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", daily_push_time):
-            daily_push_time = "08:00"
+            daily_push_time = INTEL_DAILY_PUSH_TIME
         merged["daily_push_time"] = daily_push_time
         merged["daily_enabled"] = bool(merged.get("daily_enabled", True))
 

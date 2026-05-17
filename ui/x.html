@@ -121,7 +121,7 @@
         <div class="section-head">
           <div class="section-title-wrap">
             <h2>情报配置</h2>
-            <p>默认 08:00 推送。建议保持“主线多、补充少”的配比，例如加密 8-12、世界 3-5、热门补充 1-2。</p>
+            <p>默认 08:30 推送。建议保持“主线多、补充少”的配比，例如加密 8-12、世界 3-5、热门补充 1-2。</p>
           </div>
           <button type="button" class="btn btn-ghost intel-config-toggle" id="intelConfigToggle">收起配置</button>
         </div>
@@ -134,7 +134,7 @@
           <form id="configForm" class="config-grid">
             <label>
               <span>每日推送时间（北京时间）</span>
-              <input type="text" id="dailyTime" placeholder="08:00" autocomplete="off">
+              <input type="text" id="dailyTime" placeholder="08:30" autocomplete="off">
             </label>
 
             <label>
@@ -227,7 +227,7 @@
           <div class="action-row">
             <button type="button" class="btn btn-secondary" id="xCheckButton">检查 opencli</button>
           </div>
-          <div class="summary-label">后台每 2 小时自动抓取一次最新情报；opencli 状态由页头右上角实时显示。</div>
+          <div class="summary-label">后台按北京时间 08:00 / 20:00 自动抓取；每日 08:30 发送 TG 日报；opencli 状态由页头右上角实时显示。</div>
         </div>
 
         <div class="runtime-manage">
@@ -286,7 +286,7 @@
           <div class="action-row">
             <button type="button" class="btn btn-primary" id="previewDigestButton">生成预览</button>
           </div>
-          <div class="summary-label">这里只保留预览功能，不再提供手动正式版；每天 08:00 的正式发送链路保持不变。</div>
+          <div class="summary-label">这里只保留预览功能，不再提供手动正式版；每天 08:30 的正式发送链路保持不变。</div>
         </div>
 
         <div class="feedback" id="xFeedback">等待操作。</div>

@@ -19,11 +19,14 @@ build_tasks = importlib.import_module("services.intel.build_tasks")
 class IntelBuildTaskTests(unittest.TestCase):
     @patch.object(build_tasks, "save_intel_build_task_state", autospec=True)
     @patch.object(build_tasks, "load_intel_build_task_state", autospec=True)
+    @patch.object(build_tasks.time, "time", autospec=True)
     def test_init_marks_interrupted_tasks_failed_after_restart(
         self,
+        mock_time,
         mock_load_intel_build_task_state,
         mock_save_intel_build_task_state,
     ) -> None:
+        mock_time.return_value = 1774832400
         mock_load_intel_build_task_state.return_value = {
             "tasks": [
                 {

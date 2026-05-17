@@ -82,7 +82,7 @@ python -m pip install -r requirements.txt
 当前默认配置已经按北京时间执行：
 
 - 时区：`Asia/Shanghai`
-- 每日推送时间：`08:00`
+- 每日推送时间：`08:30`
 - bot token 保存在本地忽略文件：`data/intel_secrets.json`
 
 首次绑定 Telegram 目标会话时，需要先给机器人 `@xinxiliu_bot` 发送一次 `/start` 或任意消息，否则 Telegram 不会把你的 `chat_id` 暴露给 bot。

@@ -18,7 +18,7 @@ delivery = importlib.import_module("services.intel.delivery")
 def _cfg_with_x() -> dict[str, object]:
     return {
         "timezone": "Asia/Shanghai",
-        "daily_push_time": "08:00",
+        "daily_push_time": "08:30",
         "daily_enabled": True,
         "telegram": {
             "enabled": True,
@@ -288,11 +288,11 @@ class IntelDeliveryTests(unittest.TestCase):
         mock_auto_bind_chat.return_value = cfg
         mock_load_daily_state.return_value = ({}, {"last_sent_date": "", "last_sent_at": "", "last_attempt_at": "", "last_error": ""})
 
-        result = delivery.run_daily_delivery(force=False, now=datetime(2026, 3, 30, 7, 30))
+        result = delivery.run_daily_delivery(force=False, now=datetime(2026, 3, 30, 8, 20))
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["sent"])
-        self.assertIn("等待下次推送 2026-03-30 08:00 Asia/Shanghai", result["message"])
+        self.assertIn("等待下次推送 2026-03-30 08:30 Asia/Shanghai", result["message"])
         mock_build_event_pool_payload.assert_not_called()
         mock_send_telegram_message.assert_not_called()
 
@@ -400,9 +400,9 @@ class IntelDeliveryTests(unittest.TestCase):
                 "last_sent_date": "",
                 "last_sent_at": "",
                 "last_error": "telegram timeout",
-                "last_attempt_at": "2026-03-30T08:00:00+08:00",
+                "last_attempt_at": "2026-03-30T08:30:00+08:00",
             },
-            now=datetime(2026, 3, 30, 8, 20),
+            now=datetime(2026, 3, 30, 8, 50),
         )
 
         self.assertTrue(window["is_due"])

@@ -55,7 +55,7 @@ function buildConfigPayload() {
 
   return {
     config: {
-      daily_push_time: intelDom.dailyTimeInput.value.trim() || "08:00",
+      daily_push_time: intelDom.dailyTimeInput.value.trim() || "08:30",
       limits: {
         crypto: Number(intelDom.cryptoLimitInput.value || 10),
         world: Number(intelDom.worldLimitInput.value || 3),

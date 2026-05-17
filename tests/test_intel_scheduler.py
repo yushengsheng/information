@@ -4,6 +4,7 @@ import importlib
 import sys
 import types
 import unittest
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 
@@ -12,6 +13,10 @@ monitor_stub.format_clock = lambda: "2026-03-30 08:00:00"
 sys.modules["monitor"] = monitor_stub
 
 scheduler = importlib.import_module("services.intel.scheduler")
+
+
+def _local_ts(value: str) -> float:
+    return datetime.fromisoformat(value).timestamp()
 
 
 class IntelSchedulerTests(unittest.TestCase):
@@ -33,8 +38,10 @@ class IntelSchedulerTests(unittest.TestCase):
             "build_stats": {"timings_ms": {"total": 2500}},
         }
         manager = scheduler.DailyIntelScheduler()
+        manager._next_collect_at = 1000.0
 
-        manager._maybe_refresh_snapshot()
+        with patch.object(scheduler, "_next_collect_timestamp", autospec=True, return_value=2000.0) as mock_next_collect_timestamp:
+            manager._maybe_refresh_snapshot()
 
         status = manager.status()
         self.assertEqual(status["last_collect_at"], "2026-03-30T08:00:00+08:00")
@@ -42,7 +49,9 @@ class IntelSchedulerTests(unittest.TestCase):
         self.assertEqual(status["next_collect_due_at"], "next-at")
         self.assertIn("后台抓取完成", status["last_collect_message"])
         self.assertIn("2.5 秒", status["last_collect_message"])
-        self.assertEqual(manager._next_collect_at, 1010.0 + scheduler.INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS)
+        self.assertIn("08:00 / 20:00", status["last_collect_message"])
+        self.assertEqual(manager._next_collect_at, 2000.0)
+        mock_next_collect_timestamp.assert_called_once_with(1010.0)
         mock_record_observability_snapshot.assert_called_once_with(
             manager,
             latest_digest=mock_refresh_latest_digest_snapshot.return_value,
@@ -63,6 +72,7 @@ class IntelSchedulerTests(unittest.TestCase):
         mock_format_local_time.return_value = "retry-at"
         mock_refresh_latest_digest_snapshot.side_effect = RuntimeError("boom")
         manager = scheduler.DailyIntelScheduler()
+        manager._next_collect_at = 1000.0
 
         manager._maybe_refresh_snapshot()
 
@@ -72,6 +82,19 @@ class IntelSchedulerTests(unittest.TestCase):
         self.assertEqual(status["next_collect_due_at"], "retry-at")
         self.assertEqual(manager._next_collect_at, 1005.0 + min(10 * 60, scheduler.INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS))
         mock_record_observability_snapshot.assert_called_once_with(manager)
+
+    def test_next_collect_timestamp_uses_beijing_wall_clock_slots(self) -> None:
+        next_after_morning = scheduler._next_collect_timestamp(_local_ts("2026-03-30T08:01:00+08:00"))
+        next_after_evening = scheduler._next_collect_timestamp(_local_ts("2026-03-30T20:01:00+08:00"))
+
+        self.assertEqual(
+            datetime.fromtimestamp(next_after_morning, scheduler.ZoneInfo("Asia/Shanghai")).isoformat(timespec="minutes"),
+            "2026-03-30T20:00+08:00",
+        )
+        self.assertEqual(
+            datetime.fromtimestamp(next_after_evening, scheduler.ZoneInfo("Asia/Shanghai")).isoformat(timespec="minutes"),
+            "2026-03-31T08:00+08:00",
+        )
 
     @patch.object(scheduler, "_format_local_time", autospec=True)
     @patch.object(scheduler.time, "time", autospec=True)

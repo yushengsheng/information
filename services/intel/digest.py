@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app_config import APP_VERSION
+from app_config import APP_VERSION, INTEL_DAILY_PUSH_TIME
 from monitor import format_clock
 from services.intel.ai import apply_digest_summaries
 from services.intel.collectors import collect_custom_user_items, collect_topic_items
@@ -217,7 +217,7 @@ def rebuild_digest_message_payload(payload: dict[str, object]) -> dict[str, obje
             date_text = datetime.now(ZoneInfo(timezone_name)).strftime("%Y-%m-%d")
         except ZoneInfoNotFoundError:
             date_text = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
-    daily_push_time = normalize_text(cfg.get("daily_push_time")) or "08:00"
+    daily_push_time = normalize_text(cfg.get("daily_push_time")) or INTEL_DAILY_PUSH_TIME
     lines = [f"【信息大爆炸日报 | {date_text} {daily_push_time}】", ""]
     html_lines = [html.escape(lines[0]), ""]
 

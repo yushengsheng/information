@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app_config import APP_VERSION
+from app_config import APP_VERSION, INTEL_DAILY_PUSH_TIME
 from monitor import format_clock
 from app_config import INTEL_DAILY_AGGREGATE_WINDOW_SECONDS
 from services.intel.digest import (
@@ -28,7 +28,7 @@ from services.intel.store import (
 from services.intel.telegram import get_telegram_me, resolve_latest_chat, send_telegram_message
 from services.intel.text import normalize_text
 
-DEFAULT_DAILY_PUSH_TIME = "08:00"
+DEFAULT_DAILY_PUSH_TIME = INTEL_DAILY_PUSH_TIME
 DEFAULT_TIMEZONE = "Asia/Shanghai"
 DAILY_X_RETRY_DELAYS_SECONDS = (20.0, 45.0)
 DAILY_OVERDUE_WARNING_SECONDS = 5 * 60
@@ -54,7 +54,7 @@ def _parse_daily_time(value: object) -> tuple[int, int]:
             return hour, minute
     except Exception:
         pass
-    return 8, 0
+    return 8, 30
 
 
 def _load_daily_state() -> tuple[dict[str, object], dict[str, object]]:
@@ -593,7 +593,7 @@ def send_test_telegram_message() -> dict[str, object]:
             html.escape(f"机器人：@{bot_username or '-'}"),
             html.escape(f"目标：{chat_title}"),
             html.escape(f"正文日期：{payload_date or today}"),
-            html.escape("说明：以下为测试版日报正文，不计入正式已发送，不影响每日 08:00 正式推送。"),
+            html.escape(f"说明：以下为测试版日报正文，不计入正式已发送，不影响每日 {DEFAULT_DAILY_PUSH_TIME} 正式推送。"),
             "",
             get_digest_message_html(payload),
         ]

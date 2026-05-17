@@ -4,10 +4,11 @@ import os
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from app_config import INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS
+from app_config import INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS, INTEL_BACKGROUND_FETCH_TIMES
 from services.intel.delivery import build_delivery_status, record_daily_fallback_attempt, run_daily_delivery
 from services.intel.digest import refresh_latest_digest_snapshot
 from services.intel.observability import build_observability_history_entry, build_observability_status
@@ -17,12 +18,42 @@ from services.intel.store import save_observability_history_entry
 INTEL_DAILY_LAUNCHD_LABEL = "com.inverse.intel.daily"
 INTEL_DAILY_LAUNCHD_PLIST = Path.home() / "Library/LaunchAgents" / f"{INTEL_DAILY_LAUNCHD_LABEL}.plist"
 LAUNCHD_STATUS_CACHE_SECONDS = 60
+INTEL_BACKGROUND_FETCH_TIMEZONE = "Asia/Shanghai"
 
 
 def _format_local_time(timestamp: float) -> str:
     if timestamp <= 0:
         return ""
     return datetime.fromtimestamp(timestamp).astimezone().isoformat(timespec="seconds")
+
+
+def _collect_slots() -> tuple[tuple[int, int], ...]:
+    slots: list[tuple[int, int]] = []
+    for raw_hour, raw_minute in INTEL_BACKGROUND_FETCH_TIMES:
+        hour = int(raw_hour)
+        minute = int(raw_minute)
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            slots.append((hour, minute))
+    return tuple(sorted(set(slots))) or ((8, 0), (20, 0))
+
+
+def _format_collect_schedule() -> str:
+    return " / ".join(f"{hour:02d}:{minute:02d}" for hour, minute in _collect_slots())
+
+
+def _next_collect_timestamp(reference_ts: float | None = None) -> float:
+    zone = ZoneInfo(INTEL_BACKGROUND_FETCH_TIMEZONE)
+    now_ts = time.time() if reference_ts is None else float(reference_ts)
+    current = datetime.fromtimestamp(now_ts, zone)
+    for day_offset in range(0, 2):
+        base = current + timedelta(days=day_offset)
+        for hour, minute in _collect_slots():
+            candidate = base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if candidate.timestamp() > now_ts:
+                return candidate.timestamp()
+    tomorrow = current + timedelta(days=1)
+    hour, minute = _collect_slots()[0]
+    return tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0).timestamp()
 
 
 class DailyIntelScheduler:
@@ -61,14 +92,14 @@ class DailyIntelScheduler:
             if self._thread and self._thread.is_alive():
                 return
             self._stop_event.clear()
-            self._next_collect_at = 0.0
+            self._next_collect_at = _next_collect_timestamp()
             self._thread = threading.Thread(target=self._run_loop, name="intel-daily-scheduler", daemon=True)
             self._status["running"] = True
             self._status["last_message"] = "调度器运行中"
             self._status["daily_delivery_mode"] = "launchd" if self._is_launchd_delivery_active(force_refresh=True) else "in_app"
             self._status["collect_interval_seconds"] = INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS
-            self._status["last_collect_message"] = "等待启动后的首次后台抓取"
-            self._status["next_collect_due_at"] = ""
+            self._status["last_collect_message"] = "等待下一次定时后台抓取"
+            self._status["next_collect_due_at"] = _format_local_time(self._next_collect_at)
             self._thread.start()
 
     def shutdown(self) -> None:
@@ -203,8 +234,17 @@ class DailyIntelScheduler:
 
     def _maybe_refresh_snapshot(self) -> None:
         now_ts = time.time()
+        if not self._next_collect_at:
+            self._next_collect_at = _next_collect_timestamp(now_ts)
         if self._next_collect_at and now_ts < self._next_collect_at:
-            self._set_status(next_collect_due_at=_format_local_time(self._next_collect_at))
+            self._set_status(
+                last_collect_message=(
+                    "等待下一次定时后台抓取"
+                    if not self._status.get("last_collect_at")
+                    else self._status.get("last_collect_message", "")
+                ),
+                next_collect_due_at=_format_local_time(self._next_collect_at),
+            )
             return
 
         started_at = datetime.now().astimezone().isoformat(timespec="seconds")
@@ -227,7 +267,7 @@ class DailyIntelScheduler:
             self._record_observability_snapshot()
             return
 
-        self._next_collect_at = time.time() + INTEL_BACKGROUND_FETCH_INTERVAL_SECONDS
+        self._next_collect_at = _next_collect_timestamp(time.time())
         timings = payload.get("build_stats") if isinstance(payload.get("build_stats"), dict) else {}
         timings_ms = timings.get("timings_ms") if isinstance(timings.get("timings_ms"), dict) else {}
         total_ms = int(timings_ms.get("total", 0)) if isinstance(timings_ms.get("total", 0), (int, float)) else 0
@@ -235,7 +275,7 @@ class DailyIntelScheduler:
         self._set_status(
             last_collect_at=str(payload.get("generated_at") or started_at),
             last_collect_error="",
-            last_collect_message=f"后台抓取完成（每 2 小时 1 次，用时 {duration_text}）",
+            last_collect_message=f"后台抓取完成（北京时间 {_format_collect_schedule()} 定时，用时 {duration_text}）",
             next_collect_due_at=_format_local_time(self._next_collect_at),
         )
         self._record_observability_snapshot(latest_digest=payload)

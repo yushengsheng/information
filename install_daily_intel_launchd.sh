@@ -65,7 +65,7 @@ cat >"$PLIST_PATH" <<PLIST
     <key>Hour</key>
     <integer>8</integer>
     <key>Minute</key>
-    <integer>0</integer>
+    <integer>30</integer>
   </dict>
   <key>EnvironmentVariables</key>
   <dict>

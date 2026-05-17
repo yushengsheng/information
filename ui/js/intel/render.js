@@ -352,7 +352,7 @@ export function applyConfig(config) {
   const custom = config?.custom || {};
   const telegram = config?.telegram || {};
 
-  intelDom.dailyTimeInput.value = config?.daily_push_time || "08:00";
+  intelDom.dailyTimeInput.value = config?.daily_push_time || "08:30";
   intelDom.cryptoLimitInput.value = String(limits.crypto ?? 10);
   intelDom.worldLimitInput.value = String(limits.world ?? 3);
   intelDom.hotLimitInput.value = String(limits.hot ?? 2);
@@ -378,7 +378,7 @@ export function renderTelegramStatus(data) {
     ? `目标 ${telegram.chat_title || telegram.chat_id}`
     : "目标会话未绑定";
   intelDom.telegramScheduleStatus.textContent = daily.enabled
-    ? `定时 ${daily.push_time || "08:00"} ${daily.timezone || "Asia/Shanghai"}`
+    ? `定时 ${daily.push_time || "08:30"} ${daily.timezone || "Asia/Shanghai"}`
     : "定时已关闭";
 
   const schedulerMessage = scheduler.last_message || "调度状态未知";

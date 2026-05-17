@@ -5,6 +5,8 @@ import unittest
 
 from services.intel.observability import build_observability_history_entry, build_observability_status
 
+COLLECT_INTERVAL_SECONDS = 12 * 60 * 60
+
 
 def _cfg_with_x() -> dict[str, object]:
     return {
@@ -72,7 +74,7 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=4, rss=2, reddit=0, total_items=6),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "",
                 "last_collect_error": "",
                 "last_collect_message": "后台抓取中",
@@ -96,10 +98,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=0, rss=8, reddit=0, total_items=8),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T07:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T09:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
@@ -118,10 +120,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=4, rss=2, reddit=0, fallback_items=5, total_items=6),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
-                "last_collect_at": "2026-03-30T02:00:00+08:00",
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
+                "last_collect_at": "2026-03-29T04:00:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T00:00:00+08:00",
+                "next_collect_due_at": "2026-03-29T08:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
@@ -139,10 +141,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=4, rss=2, reddit=0, total_items=6),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
                 "delivery_overdue": True,
                 "delivery_overdue_minutes": 18,
                 "delivery_fallback_due": True,
@@ -173,10 +175,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=latest_digest,
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:00:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:00:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot=task_snapshot,
@@ -195,10 +197,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=0, rss=2, reddit=1, total_items=3),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
@@ -218,10 +220,10 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=4, rss=2, reddit=0, total_items=6),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
@@ -241,17 +243,17 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=0, rss=8, reddit=0, total_items=8),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
             history_entries=[
                 {"captured_at": now_ts - 300, "alert_codes": ["x_source_missing", "rss_dominant"], "level": "critical", "source": "background_collect"},
-                {"captured_at": now_ts - 7200, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
-                {"captured_at": now_ts - 14000, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
+                {"captured_at": now_ts - COLLECT_INTERVAL_SECONDS, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
+                {"captured_at": now_ts - (2 * COLLECT_INTERVAL_SECONDS), "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
             ],
             now_ts=now_ts,
         )
@@ -271,16 +273,16 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=0, rss=8, reddit=0, total_items=8),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "2026-03-30T08:30:00+08:00",
                 "last_collect_error": "",
-                "next_collect_due_at": "2026-03-30T10:30:00+08:00",
+                "next_collect_due_at": "2026-03-30T20:00:00+08:00",
             },
             summary_status={"summary": {"mode": "ai_first", "ai_available": True, "active_mode": "ai"}},
             task_snapshot={"task": None},
             history_entries=[
                 {"captured_at": now_ts - 300, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
-                {"captured_at": now_ts - 7200, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
+                {"captured_at": now_ts - COLLECT_INTERVAL_SECONDS, "alert_codes": ["x_source_missing"], "level": "critical", "source": "background_collect"},
             ],
             now_ts=now_ts,
         )
@@ -297,7 +299,7 @@ class IntelObservabilityTests(unittest.TestCase):
             latest_digest=_digest_with_counts(x=4, rss=2, reddit=0, total_items=6),
             scheduler_status={
                 "running": True,
-                "collect_interval_seconds": 7200,
+                "collect_interval_seconds": COLLECT_INTERVAL_SECONDS,
                 "last_collect_at": "",
                 "last_collect_error": "",
                 "last_collect_message": "后台抓取中",
